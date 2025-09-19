@@ -65,4 +65,7 @@ class VDSClipsDataset(Dataset):
         clip = np.transpose(clip, (1, 0, 2, 3))
         if self.transform:
             clip = self.transform(clip)
-        return torch.from_numpy(clip), torch.tensor(label, dtype=torch.long)
+        # Ensure clip is a torch tensor before returning
+        if not isinstance(clip, torch.Tensor):
+            clip = torch.from_numpy(clip)
+        return clip, torch.tensor(label, dtype=torch.long)
