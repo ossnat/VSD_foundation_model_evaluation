@@ -6,7 +6,7 @@ training:
   device: "cuda"
 
 data:
-  dataset_path: "./data/videos"
+  dataset_path: "./data/frodo_early"
   num_frames: 5
   num_workers: 4
 
