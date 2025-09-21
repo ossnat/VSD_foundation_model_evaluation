@@ -1,0 +1,17 @@
+# config.yaml
+training:
+  epochs: 20
+  batch_size: 8
+  learning_rate: 0.001
+  device: "cuda"
+
+data:
+  dataset_path: "./data/videos"
+  num_frames: 5
+  num_workers: 4
+
+model:
+  backbone: "dino"         # choices: dino, resnet18, vit
+  temporal_pooling: "mean" # choices: mean, max, attention
+  embedding_dim: 768
+  num_classes: 10
