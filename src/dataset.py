@@ -6,48 +6,54 @@ from sklearn.model_selection import train_test_split
 # --------------------------
 # Dataset class
 # --------------------------
-from data_utils.prepare_data import preprocess_vsd_clip
-
-
 class VSDClipsDataset(Dataset):
     def __init__(self, data, labels, config, clip_len=5, transform=True,
-                 start_frame = 27, end_frame = 57):
+                 start_frame=27, end_frame=57):
         """
         Args:
             data: numpy array of shape (N, T, C, H, W)
             labels: numpy array of shape (N,) with trial-level labels
             clip_len: number of frames per clip
             transform: optional transform for each clip
+            start_frame, end_frame: frame range to consider within each trial
         """
         self.data = data
         self.labels = labels
         self.clip_len = clip_len
         self.transform = transform
         self.model_name = config['model']['backbone']
+        # Store start and end frames instead of slicing data in __init__
         self.start_frame = start_frame or 0
         self.end_frame = end_frame or data.shape[1]
-        self._cut_data()
+        # Removed _cut_data() call here
         self.indices = self._generate_indices()
 
-    def _cut_data(self):
-        """Restrict trials to frames [start_frame, end_frame)."""
-        self.data = self.data[:, self.start_frame:self.end_frame, :, :, :]
+    # Removed _cut_data method
 
     def _generate_indices(self):
-        # Each index is (trial_idx, start_frame)
+        # Each index is (trial_idx, start_frame_in_range)
         indices = []
+        # Iterate over the specified frame range
+        frames_in_range = self.end_frame - self.start_frame
         for trial_idx in range(len(self.data)):
-            T = self.data[trial_idx].shape[0]
-            for start in range(0, T - self.clip_len + 1):
-                indices.append((trial_idx, start))
+            # Ensure there are enough frames in the range to form a clip
+            if frames_in_range >= self.clip_len:
+                for start_in_range in range(0, frames_in_range - self.clip_len + 1):
+                    indices.append((trial_idx, start_in_range))
         return indices
 
     def __len__(self):
-        return len(self.indices)
+        # Check if indices were generated before returning length
+        return len(self.indices) if hasattr(self, 'indices') else 0
+
 
     def __getitem__(self, idx):
-        trial_idx, start = self.indices[idx]
-        clip = self.data[trial_idx][start:start+self.clip_len]   # (clip_len, C, H, W)
+        trial_idx, start_in_range = self.indices[idx]
+        # Calculate the actual start frame in the original data
+        actual_start_frame = self.start_frame + start_in_range
+        # Slice the data using the actual start frame and clip length
+        clip = self.data[trial_idx][actual_start_frame:actual_start_frame+self.clip_len]   # (clip_len, C, H, W)
+
         label = self.labels[trial_idx]                           # trial-level label
         if self.transform:
             # print("#### clip shape before preprocess: ", clip.shape)

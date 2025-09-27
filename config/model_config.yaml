@@ -9,6 +9,9 @@ data:
   dataset_path: "./data/frodo_early"
   num_frames: 5
   num_workers: 4
+  start_frame: 28
+  end_frame: 58   # use full length if not set
+
 
 model:
   backbone: "dino"         # choices: dino, resnet18, vit

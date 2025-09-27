@@ -1,45 +1,14 @@
-import torch
-from torch.utils.data import DataLoader
-
-### OLD CODE
-def train_loop(model, optimizer, criterion, dataloader, device):
-    model.train()
-    total_loss = 0.0
-    for x, y in dataloader:
-        x = x.to(device).float()
-        y = y.to(device)
-        logits = model(x)
-        loss = criterion(logits, y)
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-        total_loss += loss.item() * x.size(0)
-    return total_loss / len(dataloader.dataset)
-
-
-def eval_loop(model, dataloader, device):
-    model.eval()
-    ys, yps = [], []
-    with torch.no_grad():
-        for x, y in dataloader:
-            x = x.to(device).float()
-            y = y.to(device)
-            logits = model(x)
-            preds = logits.argmax(dim=1)
-            ys.append(y.cpu().numpy())
-            yps.append(preds.cpu().numpy())
-    import numpy as np
-    ys = np.concatenate(ys)
-    yps = np.concatenate(yps)
-    return ys, yps
-
-#### END OLD CODE
-
+from models.classifier import VideoClassifier
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from torch.utils.data import DataLoader
+import numpy as np
+import os
+from sklearn.metrics import accuracy_score, precision_recall_fscore_support, confusion_matrix, classification_report
+import matplotlib.pyplot as plt
 from tqdm import tqdm
-from models.classifier import VideoClassifier
+
 
 def run_one_epoch(model, loader, criterion, optimizer, device, is_train=True):
     if is_train:
@@ -70,10 +39,16 @@ def run_one_epoch(model, loader, criterion, optimizer, device, is_train=True):
     return total_loss / total_samples, total_correct / total_samples
 
 def train_model(config, train_loader, val_loader):
+    history = {"train_loss": [], "train_acc": [], "val_loss": [], "val_acc": []}
     device = config["training"]["device"]
+    print('#######', device)
+    if device == "auto":
+      device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    else:
+      device = torch.device(device)
     model = VideoClassifier(
         backbone_name=config["model"]["backbone"],
-        temporal_pooling=config["model"]["temporal_pooling"],
+        temporal_pooling=config["model"]["temporal_pooling"], #'attention', #
         embedding_dim=config["model"]["embedding_dim"],
         num_classes=config["model"]["num_classes"],
     ).to(device)
@@ -85,3 +60,9 @@ def train_model(config, train_loader, val_loader):
         train_loss, train_acc = run_one_epoch(model, train_loader, criterion, optimizer, device, True)
         val_loss, val_acc = run_one_epoch(model, val_loader, criterion, optimizer, device, False)
         print(f"Epoch {epoch+1}: train_acc={train_acc:.3f}, val_acc={val_acc:.3f}")
+
+        history["train_loss"].append(train_loss)
+        history["train_acc"].append(train_acc)
+        history["val_loss"].append(val_loss)
+        history["val_acc"].append(val_acc)
+    return history, model, device
