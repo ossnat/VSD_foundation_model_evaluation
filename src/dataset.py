@@ -6,6 +6,9 @@ from sklearn.model_selection import train_test_split
 # --------------------------
 # Dataset class
 # --------------------------
+from data_utils.prepare_data import preprocess_vsd_clip
+
+
 class VSDClipsDataset(Dataset):
     def __init__(self, data, labels, config, clip_len=5, transform=True,
                  start_frame=27, end_frame=57):
