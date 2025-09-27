@@ -32,7 +32,6 @@ def preprocess_vsd_clip(clip, model_name):
         clip = F.interpolate(clip, size=(224, 224), mode="bilinear", align_corners=False)
 
     elif "resnet".lower() in model_name.lower():
-        print('preprocess_vsd_clip for: ', model_name)
         if clip.shape[1] == 1:
             clip = clip.repeat(1, 3, 1, 1)
         clip = F.interpolate(clip, size=(224, 224), mode="bilinear", align_corners=False)
