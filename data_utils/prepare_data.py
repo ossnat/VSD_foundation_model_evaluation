@@ -23,7 +23,7 @@ def preprocess_vsd_clip(clip, model_name):
 
     # Now guaranteed [T, C, H, W]
 
-    if model_name == "dino":
+    if "dino".lower() in model_name.lower():
         # Expand grayscale → RGB
         if clip.shape[1] == 1:
             clip = clip.repeat(1, 3, 1, 1)  # → [T, 3, H, W]
