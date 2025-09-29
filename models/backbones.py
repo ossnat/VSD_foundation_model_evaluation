@@ -53,26 +53,26 @@ class Dino2DBackbone(nn.Module):
         x: (B*T, C, H, W) or (B, T, C, H, W)
         returns: (B*T, embedding_dim)
         """
-        print(f"CLIP Input shape: {x.shape}")
+        # print(f"CLIP Input shape: {x.shape}")
 
         # Handle 5D input (B, T, C, H, W) → flatten to (B*T, C, H, W)
         if x.ndim == 5:
-            print('--- FLATTENING 5D INPUT ---')
+            # print('--- FLATTENING 5D INPUT ---')
             B, T = x.size(0), x.size(1)
             x = x.view(B * T, x.size(2), x.size(3), x.size(4))
-            print(f"After flattening: {x.shape}")
+            # print(f"After flattening: {x.shape}")
 
         # Forward pass through CLIP Vision Model
-        print(f"Feeding to CLIP: {x.shape}")
+        # print(f"Feeding to CLIP: {x.shape}")
         outputs = self.backbone(pixel_values=x)
 
         # Extract pooled features (CLS token equivalent)
         features = outputs.pooler_output  # Shape: (B*T, hidden_dim)
-        print(f"CLIP features shape: {features.shape}")
+        # print(f"CLIP features shape: {features.shape}")
 
         # Apply optional projection
         output_embedding = self.fc(features)
-        print(f"Final output shape: {output_embedding.shape}")
+        # print(f"Final output shape: {output_embedding.shape}")
 
         return output_embedding
 
