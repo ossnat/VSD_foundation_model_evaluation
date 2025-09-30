@@ -19,6 +19,10 @@ class AttentionPooling(nn.Module):
         weights = torch.softmax(self.att(x), dim=1)  # (B, T, 1)
         return (weights * x).sum(dim=1)
 
+class IdentityPooling(nn.Module):
+    def forward(self, x):
+        return x
+
 def build_pooling(name: str, embedding_dim: int):
     if name == "mean":
         return MeanPooling()
@@ -26,5 +30,7 @@ def build_pooling(name: str, embedding_dim: int):
         return MaxPooling()
     elif name == "attention":
         return AttentionPooling(embedding_dim)
+    elif name == "none":
+        return IdentityPooling()
     else:
         raise ValueError(f"Pooling {name} not implemented")
