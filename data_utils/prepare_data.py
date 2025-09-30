@@ -3,6 +3,28 @@ import torch
 import torch.nn.functional as F
 import numpy as np # Import numpy
 
+def preprocess_dino3d_clip(clip, out_size=(112,112)):
+    """
+    clip: numpy array or torch tensor with shape (T, C, H, W) or (T, H, W)
+    returns: torch tensor (T, 3, out_h, out_w)
+    """
+    if isinstance(clip, np.ndarray):
+        clip = torch.from_numpy(clip)
+    clip = clip.float()
+    if clip.ndim == 3:  # (T, H, W)
+        clip = clip.unsqueeze(1)  # (T, 1, H, W)
+    # (T, C, H, W)
+    if clip.shape[1] == 1:
+        clip = clip.repeat(1, 3, 1, 1)
+    # resize per-frame: make shape (T, 3, H, W) -> to (T, 3, out_h, out_w)
+    T, C, H, W = clip.shape
+    clip = clip.permute(1, 0, 2, 3)  # (3, T, H, W)  -> interpolate expects (N, C, H, W)
+    # We'll treat each frame as batch: (3*T, 1, H, W) no — simpler: use view to (T*3,1,H,W)? simpler approach:
+    # Use F.interpolate on (T, C, H, W) directly by treating T as batch dimension:
+    clip = clip.permute(1, 0, 2, 3)  # (T, 3, H, W)
+    clip = F.interpolate(clip, size=out_size, mode="bilinear", align_corners=False)
+    return clip  # (T, 3, out_h, out_w)
+
 def preprocess_vsd_clip(clip, model_name):
     """
     clip: torch.Tensor or np.ndarray with shape [T, C, H, W] or [T, H, W]
@@ -22,6 +44,9 @@ def preprocess_vsd_clip(clip, model_name):
         clip = clip.unsqueeze(0).unsqueeze(0)  # → [1, 1, H, W]
 
     # Now guaranteed [T, C, H, W]
+
+    if 'dino3d' in model_name.lower():
+        return preprocess_dino3d_clip(clip)
 
     if "dino".lower() in model_name.lower():
         # Expand grayscale → RGB

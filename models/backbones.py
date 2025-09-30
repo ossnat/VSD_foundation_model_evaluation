@@ -1,6 +1,7 @@
 import torch.nn as nn
 import torch
 import torchvision.models as models
+from torchvision.models.video import r3d_18, R3D_18_Weights
 #from torchvision.models.video import r3d_18  # example for video backbone
 
 class DinoBackbone(nn.Module):
@@ -77,6 +78,50 @@ class Dino2DBackbone(nn.Module):
         return output_embedding
 
 
+class Dino3DBackbone(nn.Module):
+    """
+    Pretrained 3D video backbone wrapper.
+    Input:  (B, T, C, H, W) with variable T
+    Output: (B, embedding_dim)
+    """
+    def __init__(self, embedding_dim=512, model_name="r3d_18", pretrained=True, freeze=True):
+        super().__init__()
+        self.embedding_dim = embedding_dim
+
+        if model_name == "r3d_18":
+            base = r3d_18(weights=R3D_18_Weights.DEFAULT if pretrained else None)
+            in_feat = base.fc.in_features
+            modules = list(base.children())[:-1]  # drop final FC
+            self.encoder = nn.Sequential(*modules)
+            self._backbone_in_features = in_feat
+        else:
+            raise ValueError(f"Unknown 3D backbone: {model_name}")
+
+        # projection layer if embedding_dim != backbone output
+        if embedding_dim != self._backbone_in_features:
+            self.proj = nn.Linear(self._backbone_in_features, embedding_dim)
+        else:
+            self.proj = nn.Identity()
+
+        if freeze:
+            for p in self.encoder.parameters():
+                p.requires_grad = False
+
+    def forward(self, x):
+        """
+        x: (B, T, C, H, W) → permute to (B, C, T, H, W)
+        """
+        if x.ndim != 5:
+            raise ValueError(f"Expected (B,T,C,H,W) got {x.shape}")
+
+        # Permute so time is before spatial dims
+        x = x.permute(0, 2, 1, 3, 4).contiguous()  # (B, C, T, H, W)
+
+        feats = self.encoder(x)       # (B, C, 1, 1, 1)
+        feats = feats.flatten(1)      # (B, C)
+        return self.proj(feats)       # (B, embedding_dim)
+
+
 def build_backbone(name: str, embedding_dim: int):
     if name == "dino_mock":
         return DinoBackbone(embedding_dim)
@@ -86,6 +131,12 @@ def build_backbone(name: str, embedding_dim: int):
         model_name = 'openai/clip-vit-base-patch32'
         print('--- build_backbone model name: ', model_name)
         return Dino2DBackbone(embedding_dim, model_name)
+    elif name == "dino3d":
+        model_name = "r3d_18"
+        embedding_dim = 512
+        return Dino3DBackbone(embedding_dim, model_name, pretrained=True, freeze=True)
+    elif name == 'videomae':
+        pass
     elif name == "resnet18":
         return ResNetBackbone(embedding_dim)
     else:
