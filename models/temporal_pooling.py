@@ -20,8 +20,8 @@ class AttentionPooling(nn.Module):
         return (weights * x).sum(dim=1)
 
 class IdentityPooling(nn.Module):
-    def forward(self, x):
-        return x
+    def forward(self, x, B, T):
+        return x #return x.view(B, T, -1)
 
 def build_pooling(name: str, embedding_dim: int):
     if name == "mean":
