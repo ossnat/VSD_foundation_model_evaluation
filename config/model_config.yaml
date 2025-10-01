@@ -14,7 +14,7 @@ data:
 
 
 model:
-  backbone: "dino"         # choices: dino, resnet18, vit
+  backbone: "dino3d"         # choices: dino, resnet18, vit
   temporal_pooling: "mean" # choices: mean, max, attention
-  embedding_dim: 768
+  embedding_dim: 512
   num_classes: 10
