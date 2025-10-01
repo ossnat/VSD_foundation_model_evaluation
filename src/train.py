@@ -3,10 +3,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
-import numpy as np
-import os
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support, confusion_matrix, classification_report
-import matplotlib.pyplot as plt
 from tqdm import tqdm
 
 
