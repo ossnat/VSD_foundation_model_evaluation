@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 
 
-def run_one_epoch(model, loader, criterion, optimizer, device, is_train=True):
+def run_one_epoch(model, loader, criterion, optimizer, device, is_2d, is_train=True):
     if is_train:
         model.train()
     else:
@@ -20,7 +20,8 @@ def run_one_epoch(model, loader, criterion, optimizer, device, is_train=True):
 
     for clips, labels in tqdm(loader, desc="Train" if is_train else "Valid"):
         B, T, C, H, W = clips.shape
-        clips, labels = clips.view(B*T, C, H, W).to(device), labels.to(device)
+        if is_2d:
+            clips, labels = clips.view(B*T, C, H, W).to(device), labels.to(device)
 
         with torch.set_grad_enabled(is_train):
             logits = model(clips, B, T)
@@ -53,12 +54,16 @@ def train_model(config, train_loader, val_loader):
         num_classes=config["model"]["num_classes"],
     ).to(device)
 
+    is_2d = True if '2d' in config["model"]["backbone"] else False
+
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=config["training"]["learning_rate"])
 
     for epoch in range(config["training"]["epochs"]):
-        train_loss, train_acc = run_one_epoch(model, train_loader, criterion, optimizer, device, True)
-        val_loss, val_acc = run_one_epoch(model, val_loader, criterion, optimizer, device, False)
+        train_loss, train_acc = run_one_epoch(model, train_loader, criterion, optimizer,
+                                              device, is_2d, True)
+        val_loss, val_acc = run_one_epoch(model, val_loader, criterion, optimizer,
+                                          device, is_2d, False)
         print(f"Epoch {epoch+1}: train_acc={train_acc:.3f}, val_acc={val_acc:.3f}")
 
         history["train_loss"].append(train_loss)
