@@ -2,12 +2,13 @@ import torch.nn as nn
 import torch
 import torchvision.models as models
 from torchvision.models.video import r3d_18, R3D_18_Weights
+from transformers import CLIPVisionModel, CLIPProcessor
+from transformers import VideoMAEModel, AutoImageProcessor
 #from torchvision.models.video import r3d_18  # example for video backbone
 
 class DinoBackbone(nn.Module):
     def __init__(self, embedding_dim=768):
         super().__init__()
-        # dummy Dino backbone (replace with real)
         self.encoder = nn.Linear(224*224*3, embedding_dim)
 
     def forward(self, x):
@@ -26,16 +27,16 @@ class ResNetBackbone(nn.Module):
         feats = self.encoder(x).flatten(1)
         return self.fc(feats)
 
-from transformers import CLIPVisionModel, CLIPProcessor
-import torch.nn as nn
-
 
 class Dino2DBackbone(nn.Module):
     def __init__(self, embedding_dim=768, model_name="openai/clip-vit-base-patch32"):
         super().__init__()
         self.backbone = CLIPVisionModel.from_pretrained(model_name)
         self.embedding_dim = embedding_dim
+        model_output_dim = self.get_model_output_dim(model_name)
+        self.fc = nn.Identity() if embedding_dim == model_output_dim else nn.Linear(model_output_dim, embedding_dim)
 
+    def get_model_output_dim(self, model_name):
         # CLIP ViT output dimensions
         if "base" in model_name.lower():
             model_output_dim = 768
@@ -45,9 +46,8 @@ class Dino2DBackbone(nn.Module):
             model_output_dim = 1280
         else:
             model_output_dim = 768  # default
-
         # Optional projection
-        self.fc = nn.Identity() if embedding_dim == model_output_dim else nn.Linear(model_output_dim, embedding_dim)
+        return model_output_dim
 
     def forward(self, x):
         """
@@ -122,6 +122,38 @@ class Dino3DBackbone(nn.Module):
         return self.proj(feats)       # (B, embedding_dim)
 
 
+
+class VideoMAEBackbone(nn.Module):
+    def __init__(self, model_name="MCG-NJU/videomae-base", num_classes=2, freeze_backbone=True):
+        super().__init__()
+        print(f"--- Loading pretrained VideoMAE model: {model_name}")
+        self.model = VideoMAEModel.from_pretrained(model_name)
+        self.processor = AutoImageProcessor.from_pretrained(model_name)
+
+        if freeze_backbone:
+            for param in self.model.parameters():
+                param.requires_grad = False
+
+        # Classifier head
+        hidden_dim = self.model.config.hidden_size
+        self.fc = nn.Linear(hidden_dim, num_classes)
+
+    def forward(self, x):
+        """
+        x: Tensor of shape (B, T, C, H, W)
+        """
+        if x.ndim != 5:
+            raise ValueError(f"Expected (B,T,C,H,W), got {x.shape}")
+
+        # VideoMAE expects (B, C, T, H, W)
+        x = x.permute(0, 2, 1, 3, 4)
+
+        outputs = self.model(x)
+        cls_emb = outputs.last_hidden_state[:, 0]  # (B, hidden_dim)
+        logits = self.fc(cls_emb)
+        return logits
+
+
 def build_backbone(name: str, embedding_dim: int):
     if name == "dino_mock":
         return DinoBackbone(embedding_dim)
@@ -136,7 +168,7 @@ def build_backbone(name: str, embedding_dim: int):
         embedding_dim = 512
         return Dino3DBackbone(embedding_dim, model_name, pretrained=True, freeze=True)
     elif name == 'videomae':
-        pass
+        return VideoMAEBackbone(model_name="MCG-NJU/videomae-base")
     elif name == "resnet18":
         return ResNetBackbone(embedding_dim)
     else:
