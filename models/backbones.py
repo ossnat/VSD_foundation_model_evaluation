@@ -28,6 +28,43 @@ class ResNetBackbone(nn.Module):
         return self.fc(feats)
 
 
+class FrodoResNetBackbone(nn.Module):
+    """
+    1-channel VSD encoder (MAEResNet18-style) loaded from a .pth checkpoint.
+    Input: (B*T, 1, H, W) or (B*T, 3, H, W) — if 3 channels, converted to grayscale.
+    Output: (B*T, embedding_dim)
+    """
+    def __init__(self, embedding_dim=512, checkpoint_path=None, freeze_encoder=False):
+        super().__init__()
+        base = models.resnet18(weights=None)
+        self.input_conv = nn.Conv2d(1, 64, kernel_size=7, stride=2, padding=3, bias=False)
+        self.encoder = nn.Sequential(
+            base.bn1, base.relu, base.maxpool,
+            base.layer1, base.layer2, base.layer3, base.layer4,
+        )
+        backbone_out = 512
+        self.fc = nn.Linear(backbone_out, embedding_dim) if embedding_dim != backbone_out else nn.Identity()
+
+        if checkpoint_path:
+            state = torch.load(checkpoint_path, map_location="cpu", weights_only=True)
+            self.load_state_dict(state, strict=False)
+
+        if freeze_encoder:
+            for p in list(self.input_conv.parameters()) + list(self.encoder.parameters()):
+                p.requires_grad = False
+
+    def forward(self, x):
+        if x.ndim == 5:
+            B, T = x.size(0), x.size(1)
+            x = x.view(B * T, x.size(2), x.size(3), x.size(4))
+        if x.size(1) == 3:
+            x = x.mean(dim=1, keepdim=True)
+        x = self.input_conv(x)
+        x = self.encoder(x)
+        x = x.mean(dim=(2, 3))  # global average pool -> (B, 512)
+        return self.fc(x)
+
+
 class Dino2DBackbone(nn.Module):
     def __init__(self, embedding_dim=768, model_name="openai/clip-vit-base-patch32"):
         super().__init__()
@@ -171,5 +208,9 @@ def build_backbone(name: str, embedding_dim: int):
         return VideoMAEBackbone(model_name="MCG-NJU/videomae-base")
     elif name == "resnet18":
         return ResNetBackbone(embedding_dim)
+    elif name == "frodo_resnet":
+        from pathlib import Path
+        checkpoint_path = Path(__file__).resolve().parents[1] / "trained_models" / "frodo_resnet_75_encoder.pth"
+        return FrodoResNetBackbone(embedding_dim, checkpoint_path=str(checkpoint_path), freeze_encoder=False)
     else:
         raise ValueError(f"Backbone {name} not implemented")

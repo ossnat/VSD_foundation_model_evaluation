@@ -61,6 +61,11 @@ def preprocess_vsd_clip(clip, model_name):
             clip = clip.repeat(1, 3, 1, 1)
         clip = F.interpolate(clip, size=(224, 224), mode="bilinear", align_corners=False)
 
+    elif "frodo_resnet" in model_name.lower():
+        if clip.shape[1] != 1:
+            clip = clip.mean(dim=1, keepdim=True)
+        clip = F.interpolate(clip, size=(224, 224), mode="bilinear", align_corners=False)
+
     return clip
 
 
@@ -89,17 +94,32 @@ def prepare_vsd_data(path, H=100, W=100):
 
 def get_train_val_test_loaders(data, labels, VSDClipsDataset, DataLoader, config,
                                train_idx, val_idx, test_idx,
-                               clip_len=5,num_workers=2):
-    # Build datasets
+                               clip_len=None, num_workers=None):
+    data_cfg = config.get("data", {})
+    training_cfg = config.get("training", {})
+    clip_len = clip_len if clip_len is not None else data_cfg.get("num_frames", 5)
+    num_workers = num_workers if num_workers is not None else data_cfg.get("num_workers", 0)
+    start_frame = data_cfg.get("start_frame", 27)
+    end_frame = data_cfg.get("end_frame", 57)
+    batch_size = training_cfg.get("batch_size", 8)
+
     print(f"get_train_val_test_loaders: Shape of data and labels: {data.shape}, {labels.shape}")
     print(f"get_train_val_test_loaders: Length of train_idx: {len(train_idx)}")
 
-    train_dataset = VSDClipsDataset(data[train_idx], labels[train_idx], config, clip_len)
-    val_dataset = VSDClipsDataset(data[val_idx], labels[val_idx], config, clip_len)
-    test_dataset = VSDClipsDataset(data[test_idx], labels[test_idx], config, clip_len)
-    # DataLoaders
-    train_loader = DataLoader(train_dataset, batch_size=8, shuffle=True, num_workers=num_workers)
-    val_loader = DataLoader(val_dataset, batch_size=8, shuffle=False, num_workers=num_workers)
-    test_loader = DataLoader(test_dataset, batch_size=8, shuffle=False, num_workers=num_workers)
+    train_dataset = VSDClipsDataset(
+        data[train_idx], labels[train_idx], config, clip_len,
+        start_frame=start_frame, end_frame=end_frame,
+    )
+    val_dataset = VSDClipsDataset(
+        data[val_idx], labels[val_idx], config, clip_len,
+        start_frame=start_frame, end_frame=end_frame,
+    )
+    test_dataset = VSDClipsDataset(
+        data[test_idx], labels[test_idx], config, clip_len,
+        start_frame=start_frame, end_frame=end_frame,
+    )
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
+    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
 
     return train_loader, val_loader, test_loader
