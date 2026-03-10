@@ -71,10 +71,10 @@ def get_config(data_dir=None):
     config = None
     if config is None:
         config = {
-            "training": {"epochs": 1, "batch_size": 8, "learning_rate": 0.001, "device": "auto"},
+            "training": {"epochs": 10, "batch_size": 16, "learning_rate": 0.001, "device": "auto"},
             "data": {
                 "dataset_path": data_dir or "data_2026/data/frodo_early",
-                "num_frames": 5, "num_workers": 0, "start_frame": 31, "end_frame": 40,
+                "num_frames": 5, "num_workers": 0, "start_frame": 28, "end_frame": 58,
                 "frame_height": 100, "frame_width": 100,
             },
             "split": {"train_size": 0.7, "val_size": 0.15, "test_size": 0.15, "seed": 42},
