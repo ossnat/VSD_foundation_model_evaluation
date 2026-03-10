@@ -65,7 +65,7 @@ def train_model(config, train_loader, val_loader):
     if config["training"].get("lr_scheduler") == "ReduceLROnPlateau":
         patience = config["training"].get("lr_scheduler_patience", 3)
         scheduler = optim.lr_scheduler.ReduceLROnPlateau(
-            optimizer, mode="min", factor=0.5, patience=patience, verbose=True
+            optimizer, mode="min", factor=0.5, patience=patience
         )
 
     for epoch in range(config["training"]["epochs"]):
