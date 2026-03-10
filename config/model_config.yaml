@@ -1,9 +1,14 @@
 # config.yaml
 training:
-  epochs: 1
+  epochs: 3
   batch_size: 8
-  learning_rate: 0.001
+  learning_rate: 0.0005   # lower = smoother; try 0.0001 if still jittery
   device: "auto"
+  # optional: reduce LR when val loss plateaus (smoother convergence)
+  lr_scheduler: "ReduceLROnPlateau"
+  lr_scheduler_patience: 2
+  # optional: clip gradients to limit large updates (default null = no clip)
+  gradient_clip: 1.0
 
 data:
   dataset_path: "./data/frodo_early"

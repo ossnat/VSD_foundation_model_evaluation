@@ -16,6 +16,7 @@ from sklearn.metrics import (
     classification_report,
 )
 from tqdm import tqdm
+from PIL import Image
 try:
     import matplotlib.pyplot as plt
     from sklearn.metrics import ConfusionMatrixDisplay
@@ -71,10 +72,18 @@ def get_config(data_dir=None):
     config = None
     if config is None:
         config = {
-            "training": {"epochs": 10, "batch_size": 16, "learning_rate": 0.001, "device": "auto"},
+            "training": {
+                "epochs": 3,
+                "batch_size": 8,
+                "learning_rate": 0.0005,
+                "device": "auto",
+                "lr_scheduler": "ReduceLROnPlateau",
+                "lr_scheduler_patience": 2,
+                "gradient_clip": 1.0,
+            },
             "data": {
                 "dataset_path": data_dir or "data_2026/data/frodo_early",
-                "num_frames": 5, "num_workers": 0, "start_frame": 28, "end_frame": 58,
+                "num_frames": 5, "num_workers": 0, "start_frame": 31, "end_frame": 40,
                 "frame_height": 100, "frame_width": 100,
             },
             "split": {"train_size": 0.7, "val_size": 0.15, "test_size": 0.15, "seed": 42},
@@ -183,9 +192,17 @@ def plot_samples(batch_infos, all_labels, all_preds, save_path, n_per_category=2
             ax = axes[row, col]
             if col < len(chosen):
                 clip, _ = chosen[col]
-                # clip (T, C, H, W); show mean over time then squeeze channel
+                # clip (T, C, H, W); show mean over time then squeeze channel; display at 100x100 (raw VSD size)
                 frame = np.mean(clip, axis=0).squeeze()
-                ax.imshow(frame, cmap="gray")
+                if frame.shape != (100, 100):
+                    # Resize to 100x100 for display
+                    fr = np.clip(frame, frame.min(), frame.max())
+                    if fr.max() > fr.min():
+                        fr = (fr - fr.min()) / (fr.max() - fr.min()) * 255
+                    else:
+                        fr = np.zeros_like(fr)
+                    frame = np.array(Image.fromarray(fr.astype(np.uint8)).resize((100, 100), Image.BILINEAR))
+                ax.imshow(frame, cmap="gray", aspect="equal")
             else:
                 ax.axis("off")
             ax.set_xticks([])

@@ -7,7 +7,7 @@ from sklearn.metrics import accuracy_score, precision_recall_fscore_support, con
 from tqdm import tqdm
 
 
-def run_one_epoch(model, loader, criterion, optimizer, device, is_2d, is_train=True):
+def run_one_epoch(model, loader, criterion, optimizer, device, is_2d, is_train=True, max_grad_norm=None):
     if is_train:
         model.train()
     else:
@@ -27,6 +27,8 @@ def run_one_epoch(model, loader, criterion, optimizer, device, is_2d, is_train=T
             if is_train:
                 optimizer.zero_grad()
                 loss.backward()
+                if max_grad_norm is not None:
+                    torch.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm)
                 optimizer.step()
 
         preds = logits.argmax(dim=1)
@@ -55,14 +57,29 @@ def train_model(config, train_loader, val_loader):
               config["model"]["backbone"] in ("resnet18", "frodo_resnet"))
 
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters(), lr=config["training"]["learning_rate"])
+    lr = config["training"].get("learning_rate", 0.001)
+    optimizer = optim.Adam(model.parameters(), lr=lr)
+    max_grad_norm = config["training"].get("gradient_clip")
+
+    scheduler = None
+    if config["training"].get("lr_scheduler") == "ReduceLROnPlateau":
+        patience = config["training"].get("lr_scheduler_patience", 3)
+        scheduler = optim.lr_scheduler.ReduceLROnPlateau(
+            optimizer, mode="min", factor=0.5, patience=patience, verbose=True
+        )
 
     for epoch in range(config["training"]["epochs"]):
-        train_loss, train_acc = run_one_epoch(model, train_loader, criterion, optimizer,
-                                              device, is_2d, True)
-        val_loss, val_acc = run_one_epoch(model, val_loader, criterion, optimizer,
-                                          device, is_2d, False)
-        print(f"Epoch {epoch+1}: train_acc={train_acc:.3f}, val_acc={val_acc:.3f}")
+        train_loss, train_acc = run_one_epoch(
+            model, train_loader, criterion, optimizer,
+            device, is_2d, True, max_grad_norm=max_grad_norm
+        )
+        val_loss, val_acc = run_one_epoch(
+            model, val_loader, criterion, optimizer,
+            device, is_2d, False
+        )
+        if scheduler is not None:
+            scheduler.step(val_loss)
+        print(f"Epoch {epoch+1}: train_acc={train_acc:.3f}, val_acc={val_acc:.3f}, val_loss={val_loss:.4f}")
 
         history["train_loss"].append(train_loss)
         history["train_acc"].append(train_acc)
