@@ -47,7 +47,6 @@ class FrodoResNetBackbone(nn.Module):
 
         if checkpoint_path:
             state = torch.load(checkpoint_path, map_location="cpu", weights_only=True)
-            # Allow loading from full model state_dict (e.g. with "encoder." prefix)
             self.load_state_dict(state, strict=False)
 
         if freeze_encoder:

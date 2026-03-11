@@ -51,8 +51,10 @@ def train_model(config, train_loader, val_loader):
         num_classes=config["model"]["num_classes"],
     ).to(device)
 
-    is_2d = ('2d' in config["model"]["backbone"] or
-              config["model"]["backbone"] in ("resnet18", "frodo_resnet"))
+    is_2d = (
+        "2d" in config["model"]["backbone"]
+        or config["model"]["backbone"] in ("resnet18", "frodo_resnet")
+    )
 
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=config["training"]["learning_rate"])

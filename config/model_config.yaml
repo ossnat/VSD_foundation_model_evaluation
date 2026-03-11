@@ -1,4 +1,4 @@
-# config.yaml
+# config.yaml - single source of defaults; no magic numbers in code
 training:
   epochs: 20
   batch_size: 8
@@ -6,15 +6,33 @@ training:
   device: "auto"
 
 data:
-  dataset_path: "./data/frodo_early"
+  dataset_path: "data_2026/data/frodo_early"
   num_frames: 5
-  num_workers: 4
+  num_workers: 0
   start_frame: 28
-  end_frame: 58   # use full length if not set
+  end_frame: 58
+  frame_height: 100
+  frame_width: 100
 
+# train/val/test split (must sum to 1.0)
+split:
+  train_size: 0.7
+  val_size: 0.15
+  test_size: 0.15
+  seed: 42
 
 model:
-  backbone: "dino3d"         # choices: dino, resnet18, vit
-  temporal_pooling: "mean" # choices: mean, max, attention
+  backbone: "frodo_resnet"   # choices: frodo_resnet, resnet18, dino2d, dino3d, videomae
+  temporal_pooling: "mean"   # choices: mean, max, attention, none (use none for 3D)
   embedding_dim: 512
-  num_classes: 10
+  num_classes: 2
+
+# output and evaluation (used by run_frodo_classification.py)
+output:
+  results_dir: "results_frodo_classification"
+  class_names: ["vertical", "horizontal"]
+
+plot:
+  n_per_category: 2
+  confusion_matrix_dpi: 120
+  sample_clips_dpi: 120
