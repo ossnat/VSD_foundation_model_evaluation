@@ -69,8 +69,6 @@ def preprocess_vsd_clip(clip, model_name):
     return clip
 
 
-import numpy as np
-
 
 def prepare_vsd_data(path, H=100, W=100):
     """
