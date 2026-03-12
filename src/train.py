@@ -46,12 +46,36 @@ def train_model(config, train_loader, val_loader):
       device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     else:
       device = torch.device(device)
+    pooling_kwargs = None
+    if config["model"].get("temporal_pooling") == "lstm":
+        pooling_kwargs = {
+            "lstm_hidden_size": config["model"].get("lstm_hidden_size", 256),
+            "lstm_num_layers": config["model"].get("lstm_num_layers", 1),
+            "lstm_bidirectional": config["model"].get("lstm_bidirectional", False),
+        }
     model = VideoClassifier(
         backbone_name=config["model"]["backbone"],
-        temporal_pooling=config["model"]["temporal_pooling"], #'attention', #
+        temporal_pooling=config["model"]["temporal_pooling"],
         embedding_dim=config["model"]["embedding_dim"],
         num_classes=config["model"]["num_classes"],
+        pooling_kwargs=pooling_kwargs,
     ).to(device)
+
+    checkpoint_path = config["model"].get("checkpoint_path")
+    if checkpoint_path:
+        import os
+        path = os.path.expanduser(checkpoint_path)
+        if os.path.isfile(path):
+            state = torch.load(path, map_location=device, weights_only=True)
+            model.load_state_dict(state, strict=False)
+            print(f"Loaded model checkpoint from {path}")
+        else:
+            print(f"Warning: checkpoint_path not found: {path}")
+
+    freeze_pretrained = config["model"].get("freeze_pretrained", False)
+    if freeze_pretrained:
+        model.freeze_pretrained()
+        print("Frozen backbone and temporal pooling; training only the classifier head (fc).")
 
     is_2d = (
         "2d" in config["model"]["backbone"]
@@ -60,7 +84,8 @@ def train_model(config, train_loader, val_loader):
 
     criterion = nn.CrossEntropyLoss()
     lr = config["training"].get("learning_rate", 0.001)
-    optimizer = optim.Adam(model.parameters(), lr=lr)
+    params = model.fc.parameters() if freeze_pretrained else model.parameters()
+    optimizer = optim.Adam(params, lr=lr)
     max_grad_norm = config["training"].get("gradient_clip")
 
     scheduler = None

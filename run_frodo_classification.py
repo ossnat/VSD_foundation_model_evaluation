@@ -83,7 +83,7 @@ def get_config(data_dir=None):
             },
             "data": {
                 "dataset_path": data_dir or "data_2026/data/frodo_early",
-                "num_frames": 5, "num_workers": 0, "start_frame": 31, "end_frame": 40,
+                "num_frames": 5, "clip_stride": 1, "num_workers": 0, "start_frame": 31, "end_frame": 40,
                 "frame_height": 100, "frame_width": 100,
             },
             "split": {"train_size": 0.7, "val_size": 0.15, "test_size": 0.15, "seed": 42},
@@ -215,8 +215,12 @@ def plot_samples(batch_infos, all_labels, all_preds, save_path, n_per_category=2
     print(f"Saved sample plot to {save_path}")
 
 
-def main():
-    config = get_config()
+def main(config=None):
+    """Run training and evaluation. If config is None, uses get_config(). Pass a config dict to run with a different config."""
+    if config is None:
+        config = get_config()
+    else:
+        config["model"]["embedding_dim"] = get_embedding_dim(config)
     data_dir = config["data"]["dataset_path"]
     if not os.path.isabs(data_dir):
         data_dir = os.path.join(ROOT, data_dir)
@@ -302,4 +306,20 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    import argparse
+    parser = argparse.ArgumentParser(description="Run Frodo horizontal vs vertical classification.")
+    parser.add_argument(
+        "--config",
+        type=str,
+        default=None,
+        help="Path to YAML config file. If not set, uses get_config() (fallback or config/model_config.yaml).",
+    )
+    args = parser.parse_args()
+    if args.config is not None:
+        config = load_config_from_yaml(os.path.abspath(args.config))
+        if config is None:
+            raise FileNotFoundError(f"Could not load config from {args.config}")
+        config["model"]["embedding_dim"] = get_embedding_dim(config)
+        main(config)
+    else:
+        main()

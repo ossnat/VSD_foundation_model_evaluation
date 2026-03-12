@@ -96,6 +96,7 @@ def get_train_val_test_loaders(data, labels, VSDClipsDataset, DataLoader, config
     data_cfg = config.get("data", {})
     training_cfg = config.get("training", {})
     clip_len = clip_len if clip_len is not None else data_cfg.get("num_frames", 5)
+    clip_stride = data_cfg.get("clip_stride", 1)  # 1 = max overlap; clip_stride=clip_len = non-overlapping
     num_workers = num_workers if num_workers is not None else data_cfg.get("num_workers", 0)
     start_frame = data_cfg.get("start_frame", 27)
     end_frame = data_cfg.get("end_frame", 57)
@@ -106,15 +107,15 @@ def get_train_val_test_loaders(data, labels, VSDClipsDataset, DataLoader, config
 
     train_dataset = VSDClipsDataset(
         data[train_idx], labels[train_idx], config, clip_len,
-        start_frame=start_frame, end_frame=end_frame,
+        start_frame=start_frame, end_frame=end_frame, clip_stride=clip_stride,
     )
     val_dataset = VSDClipsDataset(
         data[val_idx], labels[val_idx], config, clip_len,
-        start_frame=start_frame, end_frame=end_frame,
+        start_frame=start_frame, end_frame=end_frame, clip_stride=clip_stride,
     )
     test_dataset = VSDClipsDataset(
         data[test_idx], labels[test_idx], config, clip_len,
-        start_frame=start_frame, end_frame=end_frame,
+        start_frame=start_frame, end_frame=end_frame, clip_stride=clip_stride,
     )
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)

@@ -11,7 +11,7 @@ from data_utils.prepare_data import preprocess_vsd_clip
 
 class VSDClipsDataset(Dataset):
     def __init__(self, data, labels, config, clip_len=5, transform=True,
-                 start_frame=27, end_frame=57):
+                 start_frame=27, end_frame=57, clip_stride=1):
         """
         Args:
             data: numpy array of shape (N, T, C, H, W)
@@ -19,29 +19,28 @@ class VSDClipsDataset(Dataset):
             clip_len: number of frames per clip
             transform: optional transform for each clip
             start_frame, end_frame: frame range to consider within each trial
+            clip_stride: step (in frames) between consecutive clips. 1 = maximal overlap;
+                clip_stride=clip_len = non-overlapping clips.
         """
         self.data = data
         self.labels = labels
         self.clip_len = clip_len
+        self.clip_stride = clip_stride
         self.transform = transform
         self.model_name = config['model']['backbone']
-        # Store start and end frames instead of slicing data in __init__
         self.start_frame = start_frame or 0
         self.end_frame = end_frame or data.shape[1]
-        # Removed _cut_data() call here
         self.indices = self._generate_indices()
 
     # Removed _cut_data method
 
     def _generate_indices(self):
-        # Each index is (trial_idx, start_frame_in_range)
+        # Each index is (trial_idx, start_frame_in_range). clip_stride controls overlap.
         indices = []
-        # Iterate over the specified frame range
         frames_in_range = self.end_frame - self.start_frame
         for trial_idx in range(len(self.data)):
-            # Ensure there are enough frames in the range to form a clip
             if frames_in_range >= self.clip_len:
-                for start_in_range in range(0, frames_in_range - self.clip_len + 1):
+                for start_in_range in range(0, frames_in_range - self.clip_len + 1, self.clip_stride):
                     indices.append((trial_idx, start_in_range))
         return indices
 

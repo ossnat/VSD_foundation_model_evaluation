@@ -12,7 +12,8 @@ training:
 
 data:
   dataset_path: "data_2026/data/frodo_early"
-  num_frames: 5
+  num_frames: 5          # clip length (frames per clip)
+  clip_stride: 1         # step between clips: 1 = max overlap; set to num_frames for non-overlapping
   num_workers: 0
   start_frame: 28
   end_frame: 58
